@@ -2,6 +2,7 @@ package com.qingshuo.editor.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +10,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -31,29 +36,35 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun EditorToolBar(
     onAddClip: () -> Unit,
+    onAddImage: () -> Unit,
     onSplit: () -> Unit,
     onDelete: () -> Unit,
     onAddText: () -> Unit,
     onFilter: () -> Unit,
     onTransition: () -> Unit,
     onMusic: () -> Unit,
+    onMusicFromVideo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scrollState = rememberScrollState()
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .horizontalScroll(scrollState)
             .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         ToolButton(Icons.Filled.Movie, "Add Clip", onAddClip)
+        ToolButton(Icons.Filled.Image, "Add Image", onAddImage)
         ToolButton(Icons.Filled.ContentCut, "Split", onSplit)
         ToolButton(Icons.Filled.Delete, "Delete", onDelete)
         ToolButton(Icons.Filled.TextFields, "Text", onAddText)
         ToolButton(Icons.Filled.AutoFixHigh, "Filter", onFilter)
         ToolButton(Icons.Filled.SwapHoriz, "Transition", onTransition)
         ToolButton(Icons.Filled.LibraryMusic, "Music", onMusic)
+        ToolButton(Icons.Filled.AudioFile, "BGM Video", onMusicFromVideo)
     }
 }
 
@@ -65,6 +76,7 @@ private fun ToolButton(icon: ImageVector, label: String, onClick: () -> Unit) {
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)
             .padding(6.dp)
+            .width(72.dp)
     ) {
         Box(
             modifier = Modifier

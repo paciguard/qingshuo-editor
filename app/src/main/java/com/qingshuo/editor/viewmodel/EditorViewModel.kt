@@ -4,7 +4,6 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.qingshuo.editor.data.Clip
 import com.qingshuo.editor.data.ClipFilter
 import com.qingshuo.editor.data.Project
 import com.qingshuo.editor.data.TextOverlay
@@ -28,6 +27,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private val _playbackMs = MutableStateFlow(0L)
     val playbackMs: StateFlow<Long> = _playbackMs.asStateFlow()
 
+    private val _scrubToMs = MutableStateFlow<Long?>(null)
+    val scrubToMs: StateFlow<Long?> = _scrubToMs.asStateFlow()
+
     private val _exportState = MutableStateFlow<ExportState>(ExportState.Idle)
     val exportState: StateFlow<ExportState> = _exportState.asStateFlow()
 
@@ -35,6 +37,19 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val clip = MediaImporter.importVideo(getApplication(), uri)
         _project.update { it.copy(clips = it.clips + clip) }
         if (_selectedClipId.value == null) _selectedClipId.value = clip.id
+    }
+
+    fun importImage(uri: Uri) = viewModelScope.launch {
+        val clip = MediaImporter.importImage(uri)
+        _project.update { it.copy(clips = it.clips + clip) }
+        if (_selectedClipId.value == null) _selectedClipId.value = clip.id
+    }
+
+    fun importMusicFromVideo(uri: Uri) = viewModelScope.launch {
+        val audioUri = MediaImporter.extractAudio(getApplication(), uri)
+        if (audioUri != null) {
+            _project.update { it.copy(musicUri = audioUri) }
+        }
     }
 
     fun setSelectedClip(id: String?) {
@@ -45,7 +60,15 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         _playbackMs.value = ms
     }
 
-    /** Split the selected clip at the current playback position. */
+    fun requestScrubTo(ms: Long) {
+        _scrubToMs.value = ms
+        _playbackMs.value = ms
+    }
+
+    fun acknowledgeScrub() {
+        _scrubToMs.value = null
+    }
+
     fun splitSelectedAtPlayhead() {
         val sel = _selectedClipId.value ?: return
         _project.update { p ->
@@ -53,9 +76,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             if (idx < 0) return@update p
             val abs = _playbackMs.value
             val clipStart = p.clipStartMs(idx)
-            val localCut = (abs - clipStart).coerceIn(1, p.clips[idx].durationMs - 1)
-            if (localCut <= 0 || localCut >= p.clips[idx].durationMs) return@update p
             val target = p.clips[idx]
+            val localCut = (abs - clipStart).coerceIn(1, target.durationMs - 1)
+            if (localCut <= 0 || localCut >= target.durationMs) return@update p
             val left = target.copy(endMs = target.startMs + localCut)
             val right = target.copy(
                 id = UUID.randomUUID().toString(),
@@ -116,6 +139,10 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setMusic(uri: Uri?) {
         _project.update { it.copy(musicUri = uri) }
+    }
+
+    fun setMusicFade(fadeInMs: Long, fadeOutMs: Long) {
+        _project.update { it.copy(musicFadeInMs = fadeInMs, musicFadeOutMs = fadeOutMs) }
     }
 
     fun export() {

@@ -24,7 +24,9 @@ import com.qingshuo.editor.data.Project
 fun VideoPreview(
     project: Project,
     isPlaying: Boolean,
+    scrubToMs: Long?,
     onPositionUpdate: (Long) -> Unit,
+    onScrubHandled: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -36,19 +38,22 @@ fun VideoPreview(
         }
     }
 
-    // Sync the playlist whenever the clip list changes.
-    LaunchedEffect(project.clips.map { it.id to it.uri.toString() to (it.startMs to it.endMs) }) {
+    LaunchedEffect(project.clips.map { Triple(it.id, it.uri.toString(), it.durationMs) }) {
         exoPlayer.clearMediaItems()
         project.clips.forEach { clip ->
-            val item = MediaItem.Builder()
-                .setUri(clip.uri)
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(clip.startMs)
-                        .setEndPositionMs(clip.endMs)
-                        .build()
-                )
-                .build()
+            val item = if (!clip.isImage) {
+                MediaItem.Builder()
+                    .setUri(clip.uri)
+                    .setClippingConfiguration(
+                        MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(clip.startMs)
+                            .setEndPositionMs(clip.endMs)
+                            .build()
+                    )
+                    .build()
+            } else {
+                MediaItem.fromUri(clip.uri)
+            }
             exoPlayer.addMediaItem(item)
         }
         exoPlayer.prepare()
@@ -58,7 +63,23 @@ fun VideoPreview(
         exoPlayer.playWhenReady = isPlaying
     }
 
-    // Position polling
+    LaunchedEffect(scrubToMs) {
+        val target = scrubToMs ?: return@LaunchedEffect
+        var abs = 0L
+        var idx = 0
+        var local = 0L
+        for ((i, c) in project.clips.withIndex()) {
+            if (target < abs + c.durationMs) {
+                idx = i; local = target - abs; break
+            }
+            abs += c.durationMs
+        }
+        if (project.clips.isNotEmpty()) {
+            exoPlayer.seekTo(idx, local + project.clips[idx].startMs)
+        }
+        onScrubHandled()
+    }
+
     LaunchedEffect(exoPlayer) {
         while (true) {
             onPositionUpdate(

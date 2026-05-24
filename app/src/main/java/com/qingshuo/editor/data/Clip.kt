@@ -3,14 +3,7 @@ package com.qingshuo.editor.data
 import android.net.Uri
 
 /**
- * A single clip on the timeline.
- *
- * @param uri Content URI of the source media.
- * @param sourceDurationMs Duration of the source file in ms.
- * @param startMs Trim-in point in the source (ms).
- * @param endMs Trim-out point in the source (ms). Must be > startMs.
- * @param filter Optional visual filter applied to the whole clip.
- * @param transitionToNextMs Crossfade duration to the next clip (0 = cut).
+ * A single clip on the timeline. Can be a video or a still image.
  */
 data class Clip(
     val id: String,
@@ -19,7 +12,8 @@ data class Clip(
     val startMs: Long = 0,
     val endMs: Long = sourceDurationMs,
     val filter: ClipFilter = ClipFilter.NONE,
-    val transitionToNextMs: Long = 0L
+    val transitionToNextMs: Long = 0L,
+    val isImage: Boolean = false
 ) {
     val durationMs: Long get() = (endMs - startMs).coerceAtLeast(0)
 }
@@ -27,8 +21,10 @@ data class Clip(
 enum class ClipFilter(val displayName: String) {
     NONE("None"),
     GRAYSCALE("B&W"),
-    SEPIA("Sepia"),
-    VINTAGE("Vintage"),
+    BRIGHT("Bright"),
+    DARK("Dark"),
+    WARM("Warm"),
     COOL("Cool"),
-    WARM("Warm")
+    VIVID("Vivid"),
+    FADED("Faded")
 }

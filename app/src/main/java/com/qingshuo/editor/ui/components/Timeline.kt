@@ -3,8 +3,8 @@ package com.qingshuo.editor.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,34 +21,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.qingshuo.editor.data.Clip
 import com.qingshuo.editor.data.Project
 
-/**
- * Horizontal timeline showing clip blocks proportional to their duration.
- */
 @Composable
 fun Timeline(
     project: Project,
     selectedClipId: String?,
+    currentPlaybackMs: Long,
     onClipSelected: (String) -> Unit,
+    onScrubTo: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val totalMs = project.totalDurationMs.coerceAtLeast(1)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(96.dp)
             .background(MaterialTheme.colorScheme.surface)
+            .pointerInput(totalMs) {
+                detectHorizontalDragGestures { change, _ ->
+                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                    onScrubTo((fraction * totalMs).toLong())
+                }
+            }
     ) {
         if (project.clips.isEmpty()) {
             Text(
                 text = "Tap + Add Clip to begin",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .align(Alignment.Center)
+                modifier = Modifier.padding(16.dp).align(Alignment.Center)
             )
         } else {
             LazyRow(
@@ -77,7 +81,6 @@ private fun ClipBlock(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    // Map fraction to dp width with a sensible minimum.
     val widthDp = (widthFraction * 600).dp.coerceAtLeast(60.dp)
     Box(
         modifier = Modifier
@@ -97,7 +100,7 @@ private fun ClipBlock(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = formatMs(clip.durationMs),
+            text = (if (clip.isImage) "IMG " else "") + formatMs(clip.durationMs),
             style = MaterialTheme.typography.labelSmall,
             color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
         )

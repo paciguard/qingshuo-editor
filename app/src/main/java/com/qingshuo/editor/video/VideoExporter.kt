@@ -6,6 +6,7 @@ import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.effect.RgbAdjustment
 import androidx.media3.effect.RgbFilter
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
@@ -40,19 +41,41 @@ object VideoExporter {
         val editedItems = project.clips.map { clip ->
             val mediaItem = MediaItem.Builder()
                 .setUri(clip.uri)
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(clip.startMs)
-                        .setEndPositionMs(clip.endMs)
-                        .build()
-                )
+                .apply {
+                    if (!clip.isImage) {
+                        setClippingConfiguration(
+                            MediaItem.ClippingConfiguration.Builder()
+                                .setStartPositionMs(clip.startMs)
+                                .setEndPositionMs(clip.endMs)
+                                .build()
+                        )
+                    }
+                }
                 .build()
 
             val effects = mutableListOf<androidx.media3.common.Effect>()
-            if (clip.filter == ClipFilter.GRAYSCALE) {
-                effects += RgbFilter.createGrayscaleFilter()
+            when (clip.filter) {
+                ClipFilter.GRAYSCALE -> effects += RgbFilter.createGrayscaleFilter()
+                ClipFilter.BRIGHT -> effects += RgbAdjustment.Builder()
+                    .setRedScale(1.15f).setGreenScale(1.15f).setBlueScale(1.15f).build()
+                ClipFilter.DARK -> effects += RgbAdjustment.Builder()
+                    .setRedScale(0.78f).setGreenScale(0.78f).setBlueScale(0.78f).build()
+                ClipFilter.WARM -> effects += RgbAdjustment.Builder()
+                    .setRedScale(1.18f).setGreenScale(1.04f).setBlueScale(0.85f).build()
+                ClipFilter.COOL -> effects += RgbAdjustment.Builder()
+                    .setRedScale(0.85f).setGreenScale(1.02f).setBlueScale(1.20f).build()
+                ClipFilter.VIVID -> effects += RgbAdjustment.Builder()
+                    .setRedScale(1.10f).setGreenScale(1.10f).setBlueScale(1.10f).build()
+                ClipFilter.FADED -> effects += RgbAdjustment.Builder()
+                    .setRedScale(0.92f).setGreenScale(0.95f).setBlueScale(0.98f).build()
+                ClipFilter.NONE -> { }
             }
+
             val builder = EditedMediaItem.Builder(mediaItem)
+            if (clip.isImage) {
+                builder.setDurationUs(clip.durationMs * 1000L)
+                builder.setFrameRate(30)
+            }
             if (effects.isNotEmpty()) {
                 builder.setEffects(Effects(emptyList(), effects))
             }
@@ -77,14 +100,21 @@ object VideoExporter {
                         override fun onCompleted(comp: Composition, result: ExportResult) {
                             if (cont.isActive) cont.resume(output.absolutePath)
                         }
-                        override fun onError(comp: Composition, result: ExportResult, exception: ExportException) {
+
+                        override fun onError(
+                            comp: Composition,
+                            result: ExportResult,
+                            exception: ExportException
+                        ) {
                             if (cont.isActive) cont.resumeWithException(exception)
                         }
                     })
                     .build()
 
                 cont.invokeOnCancellation {
-                    mainHandler.post { try { transformer.cancel() } catch (_: Throwable) {} }
+                    mainHandler.post {
+                        try { transformer.cancel() } catch (_: Throwable) {}
+                    }
                 }
 
                 transformer.start(composition, output.absolutePath)

@@ -4,7 +4,7 @@ import android.net.Uri
 
 /**
  * The user's edit. Holds the ordered clip list, text overlays, and an optional
- * background music track.
+ * background music track with fade in/out.
  */
 data class Project(
     val name: String = "Untitled",
@@ -12,13 +12,13 @@ data class Project(
     val textOverlays: List<TextOverlay> = emptyList(),
     val musicUri: Uri? = null,
     val musicVolume: Float = 0.6f,
+    val musicFadeInMs: Long = 1000L,
+    val musicFadeOutMs: Long = 1500L,
     val videoVolume: Float = 1.0f
 ) {
-    /** Total timeline duration in ms (sum of clip durations). */
     val totalDurationMs: Long
         get() = clips.sumOf { it.durationMs }
 
-    /** Absolute timeline start of [clipIndex]. */
     fun clipStartMs(clipIndex: Int): Long {
         var t = 0L
         for (i in 0 until clipIndex) t += clips[i].durationMs

@@ -55,6 +55,8 @@ fun EditorScreen(
     val project by vm.project.collectAsState()
     val selectedId by vm.selectedClipId.collectAsState()
     val exportState by vm.exportState.collectAsState()
+    val scrubMs by vm.scrubToMs.collectAsState()
+    val playbackMs by vm.playbackMs.collectAsState()
 
     var isPlaying by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
@@ -65,9 +67,17 @@ fun EditorScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? -> uri?.let { vm.importClip(it) } }
 
+    val pickImage = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? -> uri?.let { vm.importImage(it) } }
+
     val pickMusic = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? -> vm.setMusic(uri) }
+
+    val pickMusicFromVideo = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? -> uri?.let { vm.importMusicFromVideo(it) } }
 
     Scaffold(
         topBar = {
@@ -103,7 +113,9 @@ fun EditorScreen(
                 VideoPreview(
                     project = project,
                     isPlaying = isPlaying,
-                    onPositionUpdate = vm::updatePlayback
+                    scrubToMs = scrubMs,
+                    onPositionUpdate = vm::updatePlayback,
+                    onScrubHandled = vm::acknowledgeScrub
                 )
                 IconButton(
                     onClick = { isPlaying = !isPlaying },
@@ -124,19 +136,23 @@ fun EditorScreen(
             Timeline(
                 project = project,
                 selectedClipId = selectedId,
-                onClipSelected = vm::setSelectedClip
+                currentPlaybackMs = playbackMs,
+                onClipSelected = vm::setSelectedClip,
+                onScrubTo = vm::requestScrubTo
             )
 
             Spacer(Modifier.weight(1f))
 
             EditorToolBar(
                 onAddClip = { pickVideo.launch(arrayOf("video/*")) },
+                onAddImage = { pickImage.launch(arrayOf("image/*")) },
                 onSplit = vm::splitSelectedAtPlayhead,
                 onDelete = vm::deleteSelected,
                 onAddText = { showText = true },
                 onFilter = { showFilter = true },
                 onTransition = { showTransition = true },
-                onMusic = { pickMusic.launch(arrayOf("audio/*")) }
+                onMusic = { pickMusic.launch(arrayOf("audio/*")) },
+                onMusicFromVideo = { pickMusicFromVideo.launch(arrayOf("video/*")) }
             )
         }
     }
@@ -168,6 +184,6 @@ fun EditorScreen(
         is EditorViewModel.ExportState.Running -> ExportProgressDialog(s.progress)
         is EditorViewModel.ExportState.Done -> ExportDoneDialog(s.path, vm::acknowledgeExportResult)
         is EditorViewModel.ExportState.Failed -> ExportErrorDialog(s.message, vm::acknowledgeExportResult)
-        EditorViewModel.ExportState.Idle -> { /* no-op */ }
+        EditorViewModel.ExportState.Idle -> { }
     }
 }
