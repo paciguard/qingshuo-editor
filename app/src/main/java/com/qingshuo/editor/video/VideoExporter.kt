@@ -1,6 +1,8 @@
 package com.qingshuo.editor.video
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -22,14 +24,6 @@ import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/**
- * Builds a Media3 Composition from a Project and exports it to an MP4 file.
- *
- * v0.1 keeps only essentials (trim, merge, B&W filter) so the APK compiles
- * cleanly against media3 1.2.1. Text overlays / transitions are stubs that
- * the UI accepts but the export ignores; they'll come back in v0.2 once we
- * upgrade media3.
- */
 @OptIn(UnstableApi::class)
 object VideoExporter {
 
@@ -54,13 +48,13 @@ object VideoExporter {
                 )
                 .build()
 
-            val effectsList = mutableListOf<androidx.media3.common.Effect>()
+            val effects = mutableListOf<androidx.media3.common.Effect>()
             if (clip.filter == ClipFilter.GRAYSCALE) {
-                effectsList += RgbFilter.createGrayscaleFilter()
+                effects += RgbFilter.createGrayscaleFilter()
             }
             val builder = EditedMediaItem.Builder(mediaItem)
-            if (effectsList.isNotEmpty()) {
-                builder.setEffects(Effects(emptyList(), effectsList))
+            if (effects.isNotEmpty()) {
+                builder.setEffects(Effects(emptyList(), effects))
             }
             builder.build()
         }
@@ -70,45 +64,48 @@ object VideoExporter {
             return@suspendCancellableCoroutine
         }
 
-        val sequence = EditedMediaItemSequence(editedItems, /* isLooping = */ false)
-        val composition = Composition.Builder(listOf(sequence))
-            .setEffects(Effects(emptyList(), emptyList()))
-            .build()
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post {
+            try {
+                val sequence = EditedMediaItemSequence(editedItems, false)
+                val composition = Composition.Builder(listOf(sequence))
+                    .setEffects(Effects(emptyList(), emptyList()))
+                    .build()
 
-        val transformer = Transformer.Builder(context)
-            .addListener(object : Transformer.Listener {
-                override fun onCompleted(comp: Composition, result: ExportResult) {
-                    if (cont.isActive) cont.resume(output.absolutePath)
+                val transformer = Transformer.Builder(context)
+                    .addListener(object : Transformer.Listener {
+                        override fun onCompleted(comp: Composition, result: ExportResult) {
+                            if (cont.isActive) cont.resume(output.absolutePath)
+                        }
+                        override fun onError(comp: Composition, result: ExportResult, exception: ExportException) {
+                            if (cont.isActive) cont.resumeWithException(exception)
+                        }
+                    })
+                    .build()
+
+                cont.invokeOnCancellation {
+                    mainHandler.post { try { transformer.cancel() } catch (_: Throwable) {} }
                 }
 
-                override fun onError(
-                    comp: Composition,
-                    result: ExportResult,
-                    exception: ExportException
-                ) {
-                    if (cont.isActive) cont.resumeWithException(exception)
-                }
-            })
-            .build()
+                transformer.start(composition, output.absolutePath)
 
-        cont.invokeOnCancellation {
-            try { transformer.cancel() } catch (_: Throwable) {}
-        }
-
-        transformer.start(composition, output.absolutePath)
-        Thread {
-            val holder = androidx.media3.transformer.ProgressHolder()
-            while (cont.isActive && !output.exists()) {
-                try {
-                    Thread.sleep(200)
-                    val state = transformer.getProgress(holder)
-                    if (state == Transformer.PROGRESS_STATE_AVAILABLE) {
-                        onProgress(holder.progress / 100f)
+                val holder = androidx.media3.transformer.ProgressHolder()
+                val pollRunnable = object : Runnable {
+                    override fun run() {
+                        if (!cont.isActive) return
+                        try {
+                            val state = transformer.getProgress(holder)
+                            if (state == Transformer.PROGRESS_STATE_AVAILABLE) {
+                                onProgress(holder.progress / 100f)
+                            }
+                            mainHandler.postDelayed(this, 250)
+                        } catch (_: Throwable) { }
                     }
-                } catch (_: InterruptedException) {
-                    break
                 }
+                mainHandler.postDelayed(pollRunnable, 250)
+            } catch (t: Throwable) {
+                if (cont.isActive) cont.resumeWithException(t)
             }
-        }.start()
+        }
     }
 }
