@@ -1,6 +1,7 @@
 package com.qingshuo.editor.ui.screens
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -32,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.qingshuo.editor.data.ClipFilter
@@ -57,27 +59,55 @@ fun EditorScreen(
     val exportState by vm.exportState.collectAsState()
     val scrubMs by vm.scrubToMs.collectAsState()
     val playbackMs by vm.playbackMs.collectAsState()
+    val context = LocalContext.current
 
     var isPlaying by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
     var showFilter by remember { mutableStateOf(false) }
     var showTransition by remember { mutableStateOf(false) }
 
+    // System back returns to the home screen instead of exiting the app.
+    // Closes any open dialog first.
+    BackHandler {
+        when {
+            showText -> showText = false
+            showFilter -> showFilter = false
+            showTransition -> showTransition = false
+            exportState is EditorViewModel.ExportState.Done -> vm.acknowledgeExportResult()
+            exportState is EditorViewModel.ExportState.Failed -> vm.acknowledgeExportResult()
+            else -> onExit()
+        }
+    }
+
+    // Take persistable URI permission so a picked file remains accessible
+    // after the app comes back from the system file picker / process restart.
+    fun grantPersist(uri: Uri) {
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: SecurityException) {
+            // Some providers (e.g. MediaStore picker on newer Android) don't
+            // grant persistable permission. Best-effort.
+        }
+    }
+
     val pickVideo = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? -> uri?.let { vm.importClip(it) } }
+    ) { uri: Uri? -> uri?.let { grantPersist(it); vm.importClip(it) } }
 
     val pickImage = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? -> uri?.let { vm.importImage(it) } }
+    ) { uri: Uri? -> uri?.let { grantPersist(it); vm.importImage(it) } }
 
     val pickMusic = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? -> vm.setMusic(uri) }
+    ) { uri: Uri? -> uri?.let { grantPersist(it); vm.setMusic(it) } }
 
     val pickMusicFromVideo = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? -> uri?.let { vm.importMusicFromVideo(it) } }
+    ) { uri: Uri? -> uri?.let { grantPersist(it); vm.importMusicFromVideo(it) } }
 
     Scaffold(
         topBar = {
