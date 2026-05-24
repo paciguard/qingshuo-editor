@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Qingshuo Editor</string>
+    <string name="home_title">Projects</string>
+    <string name="new_project">New Project</string>
+    <string name="empty_projects">No projects yet. Tap + to create one.</string>
+    <string name="import_video">Import Video</string>
+    <string name="add_clip">Add Clip</string>
+    <string name="add_text">Add Text</string>
+    <string name="add_music">Add Music</string>
+    <string name="split">Split</string>
+    <string name="trim">Trim</string>
+    <string name="delete">Delete</string>
+    <string name="filter">Filter</string>
+    <string name="transition">Transition</string>
+    <string name="export">Export</string>
+    <string name="exporting">Exporting…</string>
+    <string name="export_done">Export complete</string>
+    <string name="export_failed">Export failed</string>
+    <string name="open_video">Open</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="back">Back</string>
+    <string name="text_overlay_hint">Type your text…</string>
+    <string name="confirm">OK</string>
+    <string name="cancel">Cancel</string>
+</resources>
