@@ -84,6 +84,6 @@ private fun ToolButton(icon: ImageVector, label: String, onClick: () -> Unit) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
-        }
+        )
     }
 }
