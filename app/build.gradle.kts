@@ -68,11 +68,11 @@ dependencies {
 
     // Media3 — modern Google-supported video stack
     // ExoPlayer for playback, Transformer for editing/export, UI for player view
-    implementation("androidx.media3:media3-exoplayer:1.2.1")
-    implementation("androidx.media3:media3-ui:1.2.1")
-    implementation("androidx.media3:media3-transformer:1.2.1")
-    implementation("androidx.media3:media3-effect:1.2.1")
-    implementation("androidx.media3:media3-common:1.2.1")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.media3:media3-transformer:1.3.1")
+    implementation("androidx.media3:media3-effect:1.3.1")
+    implementation("androidx.media3:media3-common:1.3.1")
 
     // Coil for thumbnails
     implementation("io.coil-kt:coil-compose:2.5.0")
