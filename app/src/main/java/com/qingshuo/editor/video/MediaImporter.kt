@@ -21,7 +21,7 @@ object MediaImporter {
             Clip(
                 id = UUID.randomUUID().toString(),
                 uri = uri,
-                sourceDurationMs: Long,
+                sourceDurationMs = duration,
                 startMs = 0,
                 endMs = duration
             )
