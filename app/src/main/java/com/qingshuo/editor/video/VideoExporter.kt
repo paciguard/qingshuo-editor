@@ -39,19 +39,23 @@ object VideoExporter {
         val output = File(exportDir, "qingshuo-$stamp.mp4")
 
         val editedItems = project.clips.map { clip ->
-            val mediaItem = MediaItem.Builder()
-                .setUri(clip.uri)
-                .apply {
-                    if (!clip.isImage) {
-                        setClippingConfiguration(
-                            MediaItem.ClippingConfiguration.Builder()
-                                .setStartPositionMs(clip.startMs)
-                                .setEndPositionMs(clip.endMs)
-                                .build()
-                        )
-                    }
-                }
-                .build()
+            val mediaItem = if (clip.isImage) {
+                // Media3 1.3+ supports image inputs via setImageDurationMs on MediaItem.
+                MediaItem.Builder()
+                    .setUri(clip.uri)
+                    .setImageDurationMs(clip.durationMs)
+                    .build()
+            } else {
+                MediaItem.Builder()
+                    .setUri(clip.uri)
+                    .setClippingConfiguration(
+                        MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(clip.startMs)
+                            .setEndPositionMs(clip.endMs)
+                            .build()
+                    )
+                    .build()
+            }
 
             val effects = mutableListOf<androidx.media3.common.Effect>()
             when (clip.filter) {
@@ -72,10 +76,6 @@ object VideoExporter {
             }
 
             val builder = EditedMediaItem.Builder(mediaItem)
-            if (clip.isImage) {
-                builder.setDurationUs(clip.durationMs * 1000L)
-                builder.setFrameRate(30)
-            }
             if (effects.isNotEmpty()) {
                 builder.setEffects(Effects(emptyList(), effects))
             }
@@ -100,21 +100,14 @@ object VideoExporter {
                         override fun onCompleted(comp: Composition, result: ExportResult) {
                             if (cont.isActive) cont.resume(output.absolutePath)
                         }
-
-                        override fun onError(
-                            comp: Composition,
-                            result: ExportResult,
-                            exception: ExportException
-                        ) {
+                        override fun onError(comp: Composition, result: ExportResult, exception: ExportException) {
                             if (cont.isActive) cont.resumeWithException(exception)
                         }
                     })
                     .build()
 
                 cont.invokeOnCancellation {
-                    mainHandler.post {
-                        try { transformer.cancel() } catch (_: Throwable) {}
-                    }
+                    mainHandler.post { try { transformer.cancel() } catch (_: Throwable) {} }
                 }
 
                 transformer.start(composition, output.absolutePath)
