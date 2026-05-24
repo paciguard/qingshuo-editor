@@ -73,12 +73,12 @@ object MediaImporter {
             muxer.start()
 
             val buf = ByteBuffer.allocate(256 * 1024)
-            val info = androidx.media.MediaCodec.BufferInfo()
+            val info = android.media.MediaCodec.BufferInfo()
             while (true) {
                 buf.clear()
                 val size = extractor.readSampleData(buf, 0)
                 if (size < 0) break
-               info.offset = 0
+                info.offset = 0
                 info.size = size
                 info.presentationTimeUs = extractor.sampleTime
                 info.flags = extractor.sampleFlags
